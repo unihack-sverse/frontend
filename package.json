@@ -1,0 +1,26 @@
+{
+    "name": "@sverse/frontend",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "nuxt dev --host 0.0.0.0 --port 3000",
+        "build": "nuxt build --preset=cloudflare_module",
+        "build:node": "nuxt build",
+        "preview": "wrangler dev",
+        "deploy": "wrangler deploy",
+        "deploy:build": "npm run build && npm run deploy",
+        "check": "nuxt typecheck"
+    },
+    "dependencies": {
+        "nuxt": "4.4.8",
+        "vue": "3.5.40",
+        "vue-router": "^5.1.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "5.9.3",
+        "vue-tsc": "2.2.12",
+        "wrangler": "4.118.0"
+    }
+}
