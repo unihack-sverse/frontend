@@ -1,10 +1,6 @@
 <template>
   <StudioShell wide>
-    <div v-if="error" class="empty">
-      <p class="empty__i">⚠️</p>
-      <p>{{ errorMessage }}</p>
-      <NuxtLink class="btn btn--grad btn--sm" to="/login?next=/studio/publish">Sign in as a creator</NuxtLink>
-    </div>
+    <StudioAccess v-if="error" :error="error" />
 
     <template v-else-if="pending">
       <div class="phead">
@@ -531,6 +527,7 @@
         </template>
       </div>
     </template>
+    <StudioAccess v-else />
   </StudioShell>
 </template>
 
@@ -596,7 +593,7 @@ const levels = [
 /* ── data ─────────────────────────────────────────────── */
 
 const { data: studioRes, pending: studioPending, error: studioError } = await useAsyncData('studio-me', () =>
-  api.one<any>('/api/v1/studios/me').catch(() => null),
+  api.one<any>('/api/v1/studios/me'),
 )
 const { data: gamesRes, refresh: refreshGames } = await useAsyncData('studio-publish-games', () =>
   api.many<GameRow>('/api/v1/studios/me/games').catch(() => ({ data: [], meta: { count: 0, hasMore: false, nextCursor: null } })),
