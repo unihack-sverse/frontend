@@ -55,6 +55,19 @@
 
     <div class="sfwrap">
       <nav class="sfnav" aria-label="Primary">
+        <template v-for="(item, index) in navItems" :key="item.sep ? `sep-${index}` : item.to">
+          <span v-if="item.sep" class="sfnav__sep" aria-hidden="true"></span>
+          <NuxtLink
+            v-else
+            class="sfnav-link"
+            :class="{ on: item.active(route.path) }"
+            :to="item.to"
+            active-class=""
+            exact-active-class=""
+          >
+            {{ item.label }}
+          </NuxtLink>
+        </template>
       </nav>
     </div>
   </header>
@@ -71,6 +84,20 @@ const toast = useToast()
 const { user, loggedIn, status } = session
 const initial = computed(() => (user.value?.handle ?? '?').charAt(0).toUpperCase())
 const loginLink = computed(() => loginPath(route.fullPath))
+
+type NavItem =
+  | { sep: true }
+  | { sep?: false; to: string; label: string; active: (path: string) => boolean }
+
+const navItems: NavItem[] = [
+  { to: '/', label: 'Games', active: (path) => path === '/' || path.startsWith('/store') },
+  { to: '/market', label: 'Items & Market', active: (path) => path.startsWith('/market') },
+  { sep: true },
+  { to: '/passport', label: 'My library', active: (path) => path === '/passport' || path.startsWith('/passport/orders') },
+  { to: '/passport/wardrobe', label: 'Wardrobe', active: (path) => path.startsWith('/passport/wardrobe') },
+  { to: '/passport/deeds', label: 'Deeds', active: (path) => path.startsWith('/passport/deeds') },
+  { to: '/passport/rewards', label: 'Rewards', active: (path) => path.startsWith('/passport/rewards') },
+]
 
 const menuOpen = ref(false)
 const menuRoot = ref<HTMLElement | null>(null)
