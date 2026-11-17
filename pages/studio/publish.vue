@@ -439,10 +439,12 @@
         <section v-else aria-labelledby="s4-h">
           <h2 id="s4-h" class="sr-only">Step 4 · Live</h2>
 
-          <div v-if="isBlockedOnBond" class="note note--warn">
-            <span class="note__i">🔒</span>
-            <div><b>{{ gameTitle }} stays in review.</b> Publishing requires a staked listing bond; your vault has {{ formatSrv(studio.vault?.availableUnits, { suffix: true }) }} available.
-              <NuxtLink to="/studio/payouts" style="text-decoration:underline"> Top up the vault →</NuxtLink></div>
+          <div v-if="isBlockedOnBond" class="note note--warn" style="align-items:center;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="note__i">🔒</span>
+              <div><b>{{ gameTitle }} stays in review.</b> Publishing requires a staked listing bond; your vault has {{ formatSrv(studio.vault?.availableUnits, { suffix: true }) }} available.</div>
+            </div>
+            <NuxtLink to="/studio/payouts#stake" class="btn btn--grad btn--sm">Stake bond ngay →</NuxtLink>
           </div>
 
           <div v-else-if="job.status === 'done'" class="card card--pad livecard">
@@ -487,6 +489,7 @@
             <div class="formacts" style="margin-top:22px">
               <NuxtLink v-if="job.game?.status === 'live' && job.game?.slug" class="btn btn--grad" :to="`/store/g/${job.game.slug}`">View in Store →</NuxtLink>
               <NuxtLink v-else-if="job.game?.status === 'in_review'" class="btn btn--ghost" to="/admin/review">Open moderation queue →</NuxtLink>
+              <NuxtLink v-if="isBlockedOnBond" class="btn btn--grad" to="/studio/payouts#stake">Stake listing bond →</NuxtLink>
               <NuxtLink v-if="job.gameId" class="btn btn--ghost" :to="`/studio/games/${job.gameId}`">Open game editor</NuxtLink>
             </div>
           </div>

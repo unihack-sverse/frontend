@@ -44,6 +44,7 @@
           <div v-if="game.submissionNo || game.blockedReason || game.rejectionReason" class="t-small dim" style="margin-top:6px">
             <span v-if="game.submissionNo">Submission #{{ game.submissionNo }}</span>
             <span v-if="game.blockedReason === 'bond_required'" class="chip chip--warn" style="margin-left:8px">listing bond required</span>
+            <NuxtLink v-if="game.blockedReason === 'bond_required'" class="btn btn--grad btn--sm" to="/studio/payouts#stake" style="margin-left:8px">Stake bond →</NuxtLink>
             <span v-else-if="game.rejectionReason" class="chip chip--bad" style="margin-left:8px">rejected · {{ game.rejectionReason }}</span>
           </div>
         </div>

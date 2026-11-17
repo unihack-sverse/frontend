@@ -117,8 +117,9 @@
           </div>
 
           <!-- ══ Staking ══ -->
-          <p class="sect">Staking · lowers your fee tier</p>
-          <div class="card card--pad">
+          <p class="sect" id="stake">Staking · lowers your fee tier</p>
+          <div class="card card--pad" id="stake-card" :class="{ 'highlight-target': isStakeTarget }">
+          
             <div class="grid g3" style="gap:14px;margin-bottom:18px">
               <div class="tile" :style="isCurrentTier('standard') ? { borderColor: 'var(--pink)' } : undefined">
                 <p class="tile__k">Current</p>
@@ -140,11 +141,19 @@
             <div class="f2">
               <div class="field" style="margin:0">
                 <label>Stake amount (SRV)</label>
-                <input v-model="stakeAmount" type="text" inputmode="decimal" placeholder="0.00" :disabled="stakePending || unstakePending">
+                <input
+                  ref="stakeInputRef"
+                  id="stake-input"
+                  v-model="stakeAmount"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="0.00"
+                  :disabled="stakePending || unstakePending"
+                >
                 <p v-if="stakeReason" class="field__err">{{ stakeReason }}</p>
               </div>
               <div class="stake__actions">
-                <button class="btn btn--ghost btn--full" type="button" :disabled="stakeDisabled" @click="stake">{{ stakeLabel }}</button>
+                <button class="btn btn--grad btn--full" type="button" :disabled="stakeDisabled" @click="stake">{{ stakeLabel }}</button>
                 <button class="btn btn--ghost btn--full" type="button" :disabled="unstakeDisabled" @click="unstake">{{ unstakeLabel }}</button>
               </div>
             </div>
@@ -416,10 +425,61 @@ async function submitWithdrawal() {
 }
 
 /* ── staking ── */
+const route = useRoute()
+const stakeInputRef = ref<HTMLInputElement | null>(null)
+const isStakeTarget = ref(false)
+
 const stakeAmount = ref('')
 const stakePending = ref(false)
 const unstakePending = ref(false)
 const stakeError = ref('')
+
+const listingBondShortfall = computed(() => {
+  const min = BigInt(studio.value?.minListingBondUnits ?? '0')
+  const current = BigInt(studio.value?.bond?.balanceUnits ?? '0')
+  return min > current ? min - current : 0n
+})
+
+function focusStakeInput() {
+  nextTick(() => {
+    const el = stakeInputRef.value || (document.getElementById('stake-input') as HTMLInputElement | null)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.focus()
+      if (!stakeAmount.value && listingBondShortfall.value > 0n) {
+        stakeAmount.value = (Number(listingBondShortfall.value) / 1_000_000).toString()
+      }
+      isStakeTarget.value = true
+      setTimeout(() => {
+        isStakeTarget.value = false
+      }, 3000)
+    }
+  })
+}
+
+onMounted(() => {
+  if (route.hash === '#stake' || route.query.action === 'stake') {
+    setTimeout(focusStakeInput, 300)
+  }
+})
+
+watch(
+  () => route.hash,
+  (newHash) => {
+    if (newHash === '#stake') {
+      focusStakeInput()
+    }
+  },
+)
+
+watch(
+  () => studio.value,
+  (s) => {
+    if (s && (route.hash === '#stake' || route.query.action === 'stake')) {
+      setTimeout(focusStakeInput, 200)
+    }
+  },
+)
 
 const feeTiersAscending = computed<StudioTier[]>(() =>
   [...(studio.value?.feeTiers ?? [])].sort((a: StudioTier, b: StudioTier) => Number(a.minStakeUnits) - Number(b.minStakeUnits)),
@@ -558,6 +618,11 @@ const upcomingUnlocks = computed(() => {
 }
 
 .tx a { text-decoration: underline; color: var(--pink); }
+
+.highlight-target {
+  box-shadow: 0 0 0 2px var(--pink), 0 0 35px rgba(255, 61, 148, 0.45) !important;
+  transition: box-shadow 0.35s ease;
+}
 
 @media (max-width: 1080px) {
   .sgrid { grid-template-columns: 1fr; }

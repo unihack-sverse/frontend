@@ -27,6 +27,15 @@
           </p>
         </div>
         <span v-if="studio.status && studio.status !== 'active'" class="chip chip--bad">{{ studio.status }}</span>
+        <button
+          v-if="studio.faucetEnabled"
+          class="btn btn--ghost"
+          type="button"
+          :disabled="faucetPending"
+          @click="claimFaucet"
+        >
+          {{ faucetPending ? 'Claiming…' : `Claim ${faucetLabel} test SRV` }}
+        </button>
         <NuxtLink class="btn btn--grad" to="/studio/publish">＋ Publish a game</NuxtLink>
       </div>
 
@@ -110,12 +119,16 @@
                   </td>
                   <td>
                     <span :class="statusChip(game.status)"><i v-if="game.status === 'live'" class="dot"></i>{{ statusLabel(game.status) }}</span>
+                    <span v-if="game.blockedReason === 'bond_required'" class="chip chip--warn" style="margin-left:6px">bond required</span>
                   </td>
                   <td><span class="chip chip--lvl">{{ game.tokenizationLevel }}</span></td>
                   <td><span :class="tierChip(game.interopTier)">{{ game.interopTier }}</span></td>
                   <td class="num">{{ formatNum(game.stats?.dau ?? 0) }}</td>
                   <td class="num">{{ formatPct(game.stats?.d7, { ratio: true }) }}</td>
-                  <td><NuxtLink class="btn btn--ghost btn--sm" :to="`/studio/games/${game.id}`">Edit</NuxtLink></td>
+                  <td style="white-space:nowrap">
+                    <NuxtLink v-if="game.blockedReason === 'bond_required'" class="btn btn--grad btn--sm" to="/studio/payouts#stake" style="margin-right:6px">Stake bond</NuxtLink>
+                    <NuxtLink class="btn btn--ghost btn--sm" :to="`/studio/games/${game.id}`">Edit</NuxtLink>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -152,7 +165,7 @@
             </div>
             <p class="t-small dim">{{ tierSentence }}</p>
             <div class="sactions">
-              <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts">Stake SRV</NuxtLink>
+              <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake SRV</NuxtLink>
               <NuxtLink class="btn btn--ghost btn--sm" to="/studio/settings">Details</NuxtLink>
             </div>
           </div>
@@ -164,6 +177,16 @@
             <div class="tot"><span>Available</span><strong>{{ studio.vault?.availableSrv ?? '0.00' }} SRV</strong></div>
           </div>
           <NuxtLink class="btn btn--ghost btn--full btn--sm" to="/studio/payouts" style="margin-top:12px">Withdraw</NuxtLink>
+          <button
+            v-if="studio.faucetEnabled"
+            class="btn btn--ghost btn--full btn--sm"
+            type="button"
+            style="margin-top:8px"
+            :disabled="faucetPending"
+            @click="claimFaucet"
+          >
+            {{ faucetPending ? 'Claiming…' : `Claim ${faucetLabel} test SRV` }}
+          </button>
 
           <p class="sect">Retention</p>
           <div class="rows">
@@ -179,16 +202,27 @@
           </div>
           <div v-if="bondShortfall" class="note note--warn" style="margin-top:12px">
             <span class="note__i">⚠️</span>
-            <div><b>Bond is below the publishing minimum.</b> New games stay in review until the vault is topped up or the bond is staked.</div>
+            <div>
+              <b>Bond is below the publishing minimum.</b> New games stay in review until the vault is topped up or the bond is staked.
+              <div style="margin-top:10px">
+                <NuxtLink to="/studio/payouts#stake" class="btn btn--grad btn--sm">Nạp vault & stake bond →</NuxtLink>
+              </div>
+            </div>
           </div>
+          <NuxtLink v-else class="btn btn--ghost btn--full btn--sm" to="/studio/payouts#stake" style="margin-top:10px">Manage stake →</NuxtLink>
 
           <template v-if="needsAttention.length">
             <p class="sect">Needs attention</p>
             <div v-for="game in needsAttention" :key="game.id" class="note note--warn">
               <span class="note__i">⚠️</span>
-              <div>
+              <div style="flex:1">
                 <b>{{ game.title }} is {{ statusLabel(game.status) }}.</b>
-                <NuxtLink :to="`/studio/games/${game.id}`" style="text-decoration:underline"> Open the editor →</NuxtLink>
+                <div v-if="game.blockedReason === 'bond_required'" style="margin-top:6px">
+                  <NuxtLink to="/studio/payouts#stake" class="btn btn--grad btn--sm">Stake listing bond →</NuxtLink>
+                </div>
+                <div v-else style="margin-top:4px">
+                  <NuxtLink :to="`/studio/games/${game.id}`" style="text-decoration:underline"> Open the editor →</NuxtLink>
+                </div>
               </div>
             </div>
           </template>
@@ -208,13 +242,14 @@ useHead({ title: 'Studio overview · Sverse' })
 type Range = 7 | 30 | 90
 
 const api = useApi()
+const toast = useToast()
 const { seedAsset, formatSrv, formatNum, formatPct, formatDate, genreLabel, statusLabel, statusChip, tierChip } = useStudioFormat()
 
 const ranges: Range[] = [7, 30, 90]
 const range = ref<Range>(30)
 const rangeLoading = ref(false)
 
-const { data: studioRes, pending: studioPending, error: studioError } = await useAsyncData('studio-me', () =>
+const { data: studioRes, pending: studioPending, error: studioError, refresh: refreshStudio } = await useAsyncData('studio-me', () =>
   api.one<any>('/api/v1/studios/me'),
 )
 const { data: gamesRes, pending: gamesPending } = await useAsyncData('studio-games', () =>
@@ -228,6 +263,28 @@ const { data: passportRes } = await useAsyncData('studio-passport', () =>
 )
 
 const studio = computed(() => studioRes.value ?? null)
+
+/* ── faucet (testnet) ── */
+const faucetPending = ref(false)
+const faucetLabel = computed(() => {
+  const units = studio.value?.faucetAmountUnits
+  return formatSrv(units ?? '1000000000')
+})
+
+async function claimFaucet() {
+  if (faucetPending.value) return
+  faucetPending.value = true
+  try {
+    await api.one('/api/v1/studios/me/faucet', { method: 'POST' })
+    await refreshStudio()
+    toast.push('Test SRV claimed', `Claimed ${faucetLabel.value} test SRV to your vault. Available balance updated.`, '✓')
+  } catch (err: any) {
+    const message = err?.data?.error?.message ?? 'Could not claim test SRV right now.'
+    toast.push('Claim failed', message, '⚠️')
+  } finally {
+    faucetPending.value = false
+  }
+}
 const games = computed<any[]>(() => gamesRes.value?.data ?? [])
 const analytics = computed(() => analyticsRes.value ?? null)
 const pending = computed(() => studioPending.value || gamesPending.value || analyticsPending.value)
