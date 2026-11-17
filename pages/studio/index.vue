@@ -27,7 +27,26 @@
           </p>
         </div>
         <span v-if="studio.status && studio.status !== 'active'" class="chip chip--bad">{{ studio.status }}</span>
+        <button
+          v-if="studio.faucetEnabled"
+          class="btn btn--ghost"
+          type="button"
+          :disabled="faucetPending"
+          @click="claimFaucet"
+        >
+          {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+        </button>
         <NuxtLink class="btn btn--grad" to="/studio/publish">＋ Publish a game</NuxtLink>
+      </div>
+
+      <!-- ══ Faucet Feedback ══ -->
+      <div v-if="faucetSuccess" class="note" style="margin-bottom:20px;color:var(--green);border-color:rgba(34,197,94,.3)">
+        <span class="note__i">✅</span>
+        <div><b>Đã nhận {{ faucetLabel }} SRV test vào Vault!</b> Số dư khả dụng đã được cộng ngay lập tức.</div>
+      </div>
+      <div v-else-if="faucetError" class="note note--bad" style="margin-bottom:20px">
+        <span class="note__i">⚠️</span>
+        <div><b>Không thể nhận SRV test:</b> {{ faucetError }}</div>
       </div>
 
       <!-- ══ Prominent listing bond notice ══ -->
@@ -37,7 +56,18 @@
           <b style="font-size:0.95rem">Listing bond chưa đủ điều kiện publish ({{ studio.bond?.balanceSrv ?? '0.00' }} / {{ formatSrv(studio.minListingBondUnits) }} SRV).</b>
           <div class="dim" style="margin-top:2px;font-size:0.85rem">Game sẽ ở trạng thái chờ duyệt (in review / blocked) cho đến khi stake đủ bond.</div>
         </div>
-        <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake bond ngay →</NuxtLink>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button
+            v-if="studio.faucetEnabled"
+            class="btn btn--ghost btn--sm"
+            type="button"
+            :disabled="faucetPending"
+            @click="claimFaucet"
+          >
+            {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+          </button>
+          <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake bond ngay →</NuxtLink>
+        </div>
       </div>
 
       <div class="tiles" style="margin-bottom:26px">
@@ -178,6 +208,16 @@
             <div class="tot"><span>Available</span><strong>{{ studio.vault?.availableSrv ?? '0.00' }} SRV</strong></div>
           </div>
           <NuxtLink class="btn btn--ghost btn--full btn--sm" to="/studio/payouts" style="margin-top:12px">Withdraw</NuxtLink>
+          <button
+            v-if="studio.faucetEnabled"
+            class="btn btn--ghost btn--full btn--sm"
+            type="button"
+            style="margin-top:8px"
+            :disabled="faucetPending"
+            @click="claimFaucet"
+          >
+            {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+          </button>
 
           <p class="sect">Retention</p>
           <div class="rows">
@@ -239,7 +279,7 @@ const ranges: Range[] = [7, 30, 90]
 const range = ref<Range>(30)
 const rangeLoading = ref(false)
 
-const { data: studioRes, pending: studioPending, error: studioError } = await useAsyncData('studio-me', () =>
+const { data: studioRes, pending: studioPending, error: studioError, refresh: refreshStudio } = await useAsyncData('studio-me', () =>
   api.one<any>('/api/v1/studios/me'),
 )
 const { data: gamesRes, pending: gamesPending } = await useAsyncData('studio-games', () =>
@@ -253,6 +293,34 @@ const { data: passportRes } = await useAsyncData('studio-passport', () =>
 )
 
 const studio = computed(() => studioRes.value ?? null)
+
+/* ── faucet (testnet) ── */
+const faucetPending = ref(false)
+const faucetSuccess = ref(false)
+const faucetError = ref('')
+const faucetLabel = computed(() => {
+  const units = studio.value?.faucetAmountUnits
+  return formatSrv(units ?? '1000000000')
+})
+
+async function claimFaucet() {
+  if (faucetPending.value) return
+  faucetPending.value = true
+  faucetSuccess.value = false
+  faucetError.value = ''
+  try {
+    await api.one('/api/v1/studios/me/faucet', { method: 'POST' })
+    faucetSuccess.value = true
+    await refreshStudio()
+    setTimeout(() => {
+      faucetSuccess.value = false
+    }, 6000)
+  } catch (err: any) {
+    faucetError.value = err?.data?.error?.message ?? 'Không thể nhận SRV test lúc này.'
+  } finally {
+    faucetPending.value = false
+  }
+}
 const games = computed<any[]>(() => gamesRes.value?.data ?? [])
 const analytics = computed(() => analyticsRes.value ?? null)
 const pending = computed(() => studioPending.value || gamesPending.value || analyticsPending.value)
