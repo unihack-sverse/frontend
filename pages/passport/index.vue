@@ -6,12 +6,63 @@
         <span class="pbanner__av pbanner__av--glyph" aria-hidden="true">{{ user.handle.charAt(0).toUpperCase() }}</span>
         <div>
           <p class="t-micro" style="color:var(--pink);margin-bottom:5px">S-PASSPORT</p>
-          <h1>@{{ user.handle }}</h1>
+          <div v-if="!editingHandle" class="pbanner__hrow">
+            <h1>@{{ user.handle }}</h1>
+            <button class="btn btn--ghost btn--sm" type="button" @click="startHandleEdit">Edit</button>
+          </div>
+          <form v-else class="pbanner__hform" novalidate @submit.prevent="saveHandle">
+            <div class="pbanner__hinputs">
+              <label class="sr-only" for="passport-handle-input">Passport handle</label>
+              <div class="hinput" :class="{ bad: Boolean(handleError) }">
+                <span class="hinput__at" aria-hidden="true">@</span>
+                <input
+                  id="passport-handle-input"
+                  ref="handleInputRef"
+                  v-model.trim="handleDraft"
+                  maxlength="20"
+                  autocomplete="username"
+                  :disabled="savingHandle"
+                  :aria-invalid="Boolean(handleError)"
+                  aria-describedby="passport-handle-err"
+                  @keydown.esc.prevent="cancelHandleEdit"
+                >
+              </div>
+              <button class="btn btn--grad btn--sm" type="submit" :disabled="savingHandle">
+                <span v-if="savingHandle" class="spin" aria-hidden="true">◐</span>
+                {{ savingHandle ? 'Saving…' : 'Save' }}
+              </button>
+              <button class="btn btn--ghost btn--sm" type="button" :disabled="savingHandle" @click="cancelHandleEdit">Cancel</button>
+            </div>
+            <p v-if="handleError" id="passport-handle-err" class="field__err" role="alert">{{ handleError }}</p>
+            <p v-else class="field__hint">3–20 letters, digits or underscores.</p>
+          </form>
           <p class="pbanner__id" :title="user.custodialAddress ?? ''">{{ shortHash(user.custodialAddress, 8, 4) || 'address pending' }} · smart account, gasless, no seed phrase</p>
           <div class="pbanner__k">
             <span class="chip chip--live">★ {{ user.reputation }} reputation</span>
             <span v-if="user.skill?.tier" class="chip chip--t1">{{ humanize(user.skill.tier) }}</span>
             <span v-if="user.creator" class="chip chip--yours">STUDIO @{{ user.creator.handle }}</span>
+            <span v-if="user.walletAddress" class="chip chip--t1" :title="user.walletAddress">
+              Avalanche Fuji · {{ shortHash(user.walletAddress, 6, 4) }}
+            </span>
+          </div>
+          <div v-if="!user.walletAddress" class="pbanner__wallet">
+            <WalletSelector
+              v-if="wallets.length >= 2"
+              v-model="selectedWalletId"
+              :wallets="wallets"
+              :disabled="linkingWallet"
+              compact
+            />
+            <button
+              class="btn btn--ghost btn--sm"
+              type="button"
+              :disabled="linkingWallet"
+              @click="connectAndLinkWallet"
+            >
+              <span v-if="linkingWallet" class="spin" aria-hidden="true">◐</span>
+              {{ linkingWallet ? (linkStep || 'Linking wallet…') : 'Link Avalanche wallet' }}
+            </button>
+            <WalletErrorNote :message="linkError" :install-url="linkInstallUrl" compact />
           </div>
         </div>
         <div class="pbanner__stats">
@@ -118,6 +169,85 @@ const session = useSession()
 const toast = useToast()
 const user = session.user
 const { data: gameOptions } = useGameOptions()
+const { wallets, selectedWalletId, selectedWallet, refresh: refreshWallets } = useWallets()
+
+const editingHandle = ref(false)
+const handleDraft = ref('')
+const handleError = ref('')
+const savingHandle = ref(false)
+const handleInputRef = ref<HTMLInputElement | null>(null)
+watch(handleDraft, () => {
+  handleError.value = ''
+})
+
+function startHandleEdit() {
+  handleDraft.value = user.value?.handle ?? ''
+  handleError.value = ''
+  editingHandle.value = true
+  nextTick(() => handleInputRef.value?.focus())
+}
+
+function cancelHandleEdit() {
+  if (savingHandle.value) return
+  editingHandle.value = false
+  handleError.value = ''
+}
+
+async function saveHandle() {
+  if (savingHandle.value) return
+  const nextHandle = handleDraft.value.trim()
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(nextHandle)) {
+    handleError.value = 'Handle must be 3–20 letters, digits or underscores.'
+    return
+  }
+  if (nextHandle === user.value?.handle) {
+    editingHandle.value = false
+    return
+  }
+  savingHandle.value = true
+  handleError.value = ''
+  try {
+    const me = await session.updateHandle(nextHandle)
+    editingHandle.value = false
+    toast.push('Handle updated', `You are now @${me.handle}.`, '✓')
+  } catch (err) {
+    if (isApiError(err, 'handle_taken')) handleError.value = 'That handle is taken — try another.'
+    else if (isApiError(err, 'validation_failed')) handleError.value = err.field('handle') ?? 'Handle must be 3–20 letters, digits or underscores.'
+    else handleError.value = errorMessage(err)
+  } finally {
+    savingHandle.value = false
+  }
+}
+
+const linkingWallet = ref(false)
+const linkStep = ref('')
+const linkError = ref('')
+const linkInstallUrl = ref<string | null>(null)
+
+async function connectAndLinkWallet() {
+  if (linkingWallet.value) return
+  linkError.value = ''
+  linkInstallUrl.value = null
+  linkStep.value = 'Connecting wallet…'
+  linkingWallet.value = true
+  try {
+    const provider = selectedWallet.value?.provider ?? refreshWallets()[0]?.provider ?? null
+    const me = await session.linkWallet({
+      provider,
+      onStep: (step) => {
+        linkStep.value = step
+      },
+    })
+    toast.push('Wallet linked', `Avalanche Fuji · ${shortHash(me.walletAddress, 6, 4)}`, '✓')
+  } catch (err) {
+    const info = describeWalletAuthError(err)
+    linkError.value = info.message
+    linkInstallUrl.value = info.installUrl
+  } finally {
+    linkingWallet.value = false
+    linkStep.value = ''
+  }
+}
 
 const kind = computed(() => {
   const value = String(route.query.kind ?? '')
