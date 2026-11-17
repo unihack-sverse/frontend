@@ -36,8 +36,8 @@
     <div class="note" style="margin-top:22px">
       <span class="note__i">🎚</span>
       <div>
-        This studio publishes at <b>{{ tokenizationLevel }}</b> on the Tokenization Ladder. Items at L3+ are minted to your passport on-chain;
-        lower levels stay off-chain entitlements. Moving up a level is a config change and cannot be undone.
+        This game publishes at <b>{{ tokenizationLevel }}</b> on the Tokenization Ladder. Items at L2 and above are minted to your passport on-chain;
+        L0–L1 items stay off-chain entitlements. L3 and above adds Living Items and deed history. Moving up a level cannot be undone.
       </div>
     </div>
 

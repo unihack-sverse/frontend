@@ -205,13 +205,16 @@
               {{ formatSrv(kycThresholdUnits, { suffix: true }) }} of lifetime withdrawals.</div>
           </div>
 
-          <p class="sect">State: nothing available</p>
+          <template v-if="availableUnits <= 0n">
+          <p class="sect">No funds available</p>
           <div class="card card--pad">
             <p style="font-weight:600">{{ studio.vault?.availableSrv ?? '0.00' }} SRV available</p>
-            <p class="t-small dim" style="margin-top:6px">All {{ formatSrv(studio.vault?.lockedUnits, { suffix: true }) }}
+            <p v-if="lockedUnits > 0n" class="t-small dim" style="margin-top:6px">All {{ formatSrv(studio.vault?.lockedUnits, { suffix: true }) }}
               in your vault is inside the 30-day dispute window. The withdrawal form is disabled and says why.</p>
+            <p v-else class="t-small dim" style="margin-top:6px">Your vault is empty. Funds will be available here once your studio receives revenue.</p>
             <button class="btn btn--ghost btn--full is-off" disabled style="margin-top:14px">Withdraw unavailable</button>
           </div>
+          </template>
 
           <p class="sect">Why funds lock</p>
           <div class="card card--pad">
@@ -349,7 +352,9 @@ const destinations = computed(() => [
 ])
 const withdrawUnits = computed(() => srvStringToUnits(withdrawAmount.value))
 const withdrawReason = computed(() => {
-  if (availableUnits.value <= 0n) return 'No funds available — everything in the vault is inside the 30-day dispute window.'
+  if (availableUnits.value <= 0n) return lockedUnits.value > 0n
+    ? 'No funds available — everything in the vault is inside the 30-day dispute window.'
+    : 'No funds available — your vault is empty.'
   if (withdrawUnits.value === null) return withdrawAmount.value.trim() ? 'Enter a valid SRV amount.' : ''
   if (withdrawUnits.value <= 0n) return 'Amount must be greater than zero.'
   if (withdrawUnits.value > availableUnits.value) return `That is more than your ${formatSrv(studio.value?.vault?.availableUnits)} SRV available.`

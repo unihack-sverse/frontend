@@ -1,10 +1,6 @@
 <template>
   <StudioShell wide>
-    <div v-if="error" class="empty">
-      <p class="empty__i">⚠️</p>
-      <p>{{ errorMessage }}</p>
-      <NuxtLink class="btn btn--grad btn--sm" to="/login?next=/studio/publish">Sign in as a creator</NuxtLink>
-    </div>
+    <StudioAccess v-if="error" :error="error" />
 
     <template v-else-if="pending">
       <div class="phead">
@@ -456,7 +452,7 @@
               </div>
               <template v-if="job.game?.status === 'live'">
                 <h2 class="t-h1">{{ gameTitle }} is live</h2>
-                <p class="dim" style="margin:8px 0 18px">Automated review passed — malware scan, IP fingerprint, content policy.</p>
+                <p class="dim" style="margin:8px 0 18px">{{ liveReviewMessage }}</p>
               </template>
               <template v-else-if="job.game?.status === 'in_review'">
                 <h2 class="t-h1" style="color:var(--amber)">{{ gameTitle }} is in review</h2>
@@ -531,6 +527,7 @@
         </template>
       </div>
     </template>
+    <StudioAccess v-else />
   </StudioShell>
 </template>
 
@@ -596,7 +593,7 @@ const levels = [
 /* ── data ─────────────────────────────────────────────── */
 
 const { data: studioRes, pending: studioPending, error: studioError } = await useAsyncData('studio-me', () =>
-  api.one<any>('/api/v1/studios/me').catch(() => null),
+  api.one<any>('/api/v1/studios/me'),
 )
 const { data: gamesRes, refresh: refreshGames } = await useAsyncData('studio-publish-games', () =>
   api.many<GameRow>('/api/v1/studios/me/games').catch(() => ({ data: [], meta: { count: 0, hasMore: false, nextCursor: null } })),
@@ -708,6 +705,16 @@ const canApprove = computed(() => {
 const isBlockedOnBond = computed(() => job.value?.game?.blockedReason === 'bond_required' && job.value?.status === 'done')
 const publishStep = computed(() => job.value?.steps?.find((s: any) => s.step === 'publish'))
 const publishChecks = computed<any[]>(() => publishStep.value?.output?.checks ?? [])
+const liveReviewMessage = computed(() => {
+  const outcome = publishStep.value?.output?.outcome
+  if (outcome === 'auto_approved' && publishChecks.value.length && publishChecks.value.every((check) => check.status === 'passed')) {
+    return 'Automated review passed — malware scan, IP fingerprint, content policy.'
+  }
+  if (outcome === 'escalated' || outcome === 'approved') {
+    return 'Approved by a moderator. The original automated scan results are shown below.'
+  }
+  return 'Your game has been approved and is available in the Store.'
+})
 const gameTitle = computed(() => job.value?.game?.title ?? selectedGame.value?.title ?? form.title ?? 'Your game')
 const coverEmoji = computed(() => draftRows.value[0]?.emoji || '📦')
 
