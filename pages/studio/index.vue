@@ -49,27 +49,6 @@
         <div><b>Không thể nhận SRV test:</b> {{ faucetError }}</div>
       </div>
 
-      <!-- ══ Prominent listing bond notice ══ -->
-      <div v-if="bondShortfall || hasBlockedGame" class="note note--warn" style="margin-bottom:26px;align-items:center;background:linear-gradient(90deg, rgba(255, 190, 61, 0.15), rgba(123, 47, 247, 0.12));border:1px solid rgba(255, 190, 61, 0.4);border-radius:var(--r-md);padding:14px 18px">
-        <span class="note__i" style="font-size:1.4rem">⚠️</span>
-        <div style="flex:1">
-          <b style="font-size:0.95rem">Listing bond chưa đủ điều kiện publish ({{ studio.bond?.balanceSrv ?? '0.00' }} / {{ formatSrv(studio.minListingBondUnits) }} SRV).</b>
-          <div class="dim" style="margin-top:2px;font-size:0.85rem">Game sẽ ở trạng thái chờ duyệt (in review / blocked) cho đến khi stake đủ bond.</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button
-            v-if="studio.faucetEnabled"
-            class="btn btn--ghost btn--sm"
-            type="button"
-            :disabled="faucetPending"
-            @click="claimFaucet"
-          >
-            {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
-          </button>
-          <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake bond ngay →</NuxtLink>
-        </div>
-      </div>
-
       <div class="tiles" style="margin-bottom:26px">
         <div class="tile">
           <p class="tile__k">Gross revenue · {{ range }}d</p>
@@ -359,7 +338,6 @@ const bondShortfall = computed(() => {
   const min = BigInt(studio.value?.minListingBondUnits ?? '0')
   return min > 0n && bond < min
 })
-const hasBlockedGame = computed(() => games.value.some((game: any) => game.blockedReason === 'bond_required' || game.status === 'in_review'))
 const needsAttention = computed(() => games.value.filter((game: any) => game.status !== 'live'))
 
 function capitalize(value: string) {

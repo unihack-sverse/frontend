@@ -119,16 +119,7 @@
           <!-- ══ Staking ══ -->
           <p class="sect" id="stake">Staking · lowers your fee tier</p>
           <div class="card card--pad" id="stake-card" :class="{ 'highlight-target': isStakeTarget }">
-            <div v-if="listingBondShortfall > 0n" class="note note--warn" style="margin-bottom:18px;align-items:center;padding:10px 14px">
-              <span class="note__i">ℹ️</span>
-              <div style="flex:1">
-                Cần tối thiểu <b>{{ formatSrv(listingBondShortfall) }} SRV</b> nữa để đủ listing bond kích hoạt game.
-              </div>
-              <button class="btn btn--ghost btn--sm" type="button" @click="stakeAmount = (Number(listingBondShortfall) / 1_000_000).toString()">
-                Điền {{ formatSrv(listingBondShortfall) }} SRV
-              </button>
-            </div>
-
+          
             <div class="grid g3" style="gap:14px;margin-bottom:18px">
               <div class="tile" :style="isCurrentTier('standard') ? { borderColor: 'var(--pink)' } : undefined">
                 <p class="tile__k">Current</p>
