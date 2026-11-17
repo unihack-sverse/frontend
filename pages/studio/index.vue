@@ -34,19 +34,9 @@
           :disabled="faucetPending"
           @click="claimFaucet"
         >
-          {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+          {{ faucetPending ? 'Claiming…' : `Claim ${faucetLabel} test SRV` }}
         </button>
         <NuxtLink class="btn btn--grad" to="/studio/publish">＋ Publish a game</NuxtLink>
-      </div>
-
-      <!-- ══ Faucet Feedback ══ -->
-      <div v-if="faucetSuccess" class="note" style="margin-bottom:20px;color:var(--green);border-color:rgba(34,197,94,.3)">
-        <span class="note__i">✅</span>
-        <div><b>Đã nhận {{ faucetLabel }} SRV test vào Vault!</b> Số dư khả dụng đã được cộng ngay lập tức.</div>
-      </div>
-      <div v-else-if="faucetError" class="note note--bad" style="margin-bottom:20px">
-        <span class="note__i">⚠️</span>
-        <div><b>Không thể nhận SRV test:</b> {{ faucetError }}</div>
       </div>
 
       <div class="tiles" style="margin-bottom:26px">
@@ -195,7 +185,7 @@
             :disabled="faucetPending"
             @click="claimFaucet"
           >
-            {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+            {{ faucetPending ? 'Claiming…' : `Claim ${faucetLabel} test SRV` }}
           </button>
 
           <p class="sect">Retention</p>
@@ -252,6 +242,7 @@ useHead({ title: 'Studio overview · Sverse' })
 type Range = 7 | 30 | 90
 
 const api = useApi()
+const toast = useToast()
 const { seedAsset, formatSrv, formatNum, formatPct, formatDate, genreLabel, statusLabel, statusChip, tierChip } = useStudioFormat()
 
 const ranges: Range[] = [7, 30, 90]
@@ -275,8 +266,6 @@ const studio = computed(() => studioRes.value ?? null)
 
 /* ── faucet (testnet) ── */
 const faucetPending = ref(false)
-const faucetSuccess = ref(false)
-const faucetError = ref('')
 const faucetLabel = computed(() => {
   const units = studio.value?.faucetAmountUnits
   return formatSrv(units ?? '1000000000')
@@ -285,17 +274,13 @@ const faucetLabel = computed(() => {
 async function claimFaucet() {
   if (faucetPending.value) return
   faucetPending.value = true
-  faucetSuccess.value = false
-  faucetError.value = ''
   try {
     await api.one('/api/v1/studios/me/faucet', { method: 'POST' })
-    faucetSuccess.value = true
     await refreshStudio()
-    setTimeout(() => {
-      faucetSuccess.value = false
-    }, 6000)
+    toast.push('Test SRV claimed', `Claimed ${faucetLabel.value} test SRV to your vault. Available balance updated.`, '✓')
   } catch (err: any) {
-    faucetError.value = err?.data?.error?.message ?? 'Không thể nhận SRV test lúc này.'
+    const message = err?.data?.error?.message ?? 'Could not claim test SRV right now.'
+    toast.push('Claim failed', message, '⚠️')
   } finally {
     faucetPending.value = false
   }
