@@ -30,6 +30,16 @@
         <NuxtLink class="btn btn--grad" to="/studio/publish">＋ Publish a game</NuxtLink>
       </div>
 
+      <!-- ══ Prominent listing bond notice ══ -->
+      <div v-if="bondShortfall || hasBlockedGame" class="note note--warn" style="margin-bottom:26px;align-items:center;background:linear-gradient(90deg, rgba(255, 190, 61, 0.15), rgba(123, 47, 247, 0.12));border:1px solid rgba(255, 190, 61, 0.4);border-radius:var(--r-md);padding:14px 18px">
+        <span class="note__i" style="font-size:1.4rem">⚠️</span>
+        <div style="flex:1">
+          <b style="font-size:0.95rem">Listing bond chưa đủ điều kiện publish ({{ studio.bond?.balanceSrv ?? '0.00' }} / {{ formatSrv(studio.minListingBondUnits) }} SRV).</b>
+          <div class="dim" style="margin-top:2px;font-size:0.85rem">Game sẽ ở trạng thái chờ duyệt (in review / blocked) cho đến khi stake đủ bond.</div>
+        </div>
+        <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake bond ngay →</NuxtLink>
+      </div>
+
       <div class="tiles" style="margin-bottom:26px">
         <div class="tile">
           <p class="tile__k">Gross revenue · {{ range }}d</p>
@@ -110,12 +120,16 @@
                   </td>
                   <td>
                     <span :class="statusChip(game.status)"><i v-if="game.status === 'live'" class="dot"></i>{{ statusLabel(game.status) }}</span>
+                    <span v-if="game.blockedReason === 'bond_required'" class="chip chip--warn" style="margin-left:6px">bond required</span>
                   </td>
                   <td><span class="chip chip--lvl">{{ game.tokenizationLevel }}</span></td>
                   <td><span :class="tierChip(game.interopTier)">{{ game.interopTier }}</span></td>
                   <td class="num">{{ formatNum(game.stats?.dau ?? 0) }}</td>
                   <td class="num">{{ formatPct(game.stats?.d7, { ratio: true }) }}</td>
-                  <td><NuxtLink class="btn btn--ghost btn--sm" :to="`/studio/games/${game.id}`">Edit</NuxtLink></td>
+                  <td style="white-space:nowrap">
+                    <NuxtLink v-if="game.blockedReason === 'bond_required'" class="btn btn--grad btn--sm" to="/studio/payouts#stake" style="margin-right:6px">Stake bond</NuxtLink>
+                    <NuxtLink class="btn btn--ghost btn--sm" :to="`/studio/games/${game.id}`">Edit</NuxtLink>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -152,7 +166,7 @@
             </div>
             <p class="t-small dim">{{ tierSentence }}</p>
             <div class="sactions">
-              <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts">Stake SRV</NuxtLink>
+              <NuxtLink class="btn btn--grad btn--sm" to="/studio/payouts#stake">Stake SRV</NuxtLink>
               <NuxtLink class="btn btn--ghost btn--sm" to="/studio/settings">Details</NuxtLink>
             </div>
           </div>
@@ -182,18 +196,24 @@
             <div>
               <b>Bond is below the publishing minimum.</b> New games stay in review until the vault is topped up or the bond is staked.
               <div style="margin-top:10px">
-                <NuxtLink to="/studio/payouts" class="btn btn--ghost btn--sm">Nạp vault & stake bond →</NuxtLink>
+                <NuxtLink to="/studio/payouts#stake" class="btn btn--grad btn--sm">Nạp vault & stake bond →</NuxtLink>
               </div>
             </div>
           </div>
+          <NuxtLink v-else class="btn btn--ghost btn--full btn--sm" to="/studio/payouts#stake" style="margin-top:10px">Manage stake →</NuxtLink>
 
           <template v-if="needsAttention.length">
             <p class="sect">Needs attention</p>
             <div v-for="game in needsAttention" :key="game.id" class="note note--warn">
               <span class="note__i">⚠️</span>
-              <div>
+              <div style="flex:1">
                 <b>{{ game.title }} is {{ statusLabel(game.status) }}.</b>
-                <NuxtLink :to="`/studio/games/${game.id}`" style="text-decoration:underline"> Open the editor →</NuxtLink>
+                <div v-if="game.blockedReason === 'bond_required'" style="margin-top:6px">
+                  <NuxtLink to="/studio/payouts#stake" class="btn btn--grad btn--sm">Stake listing bond →</NuxtLink>
+                </div>
+                <div v-else style="margin-top:4px">
+                  <NuxtLink :to="`/studio/games/${game.id}`" style="text-decoration:underline"> Open the editor →</NuxtLink>
+                </div>
               </div>
             </div>
           </template>
@@ -271,6 +291,7 @@ const bondShortfall = computed(() => {
   const min = BigInt(studio.value?.minListingBondUnits ?? '0')
   return min > 0n && bond < min
 })
+const hasBlockedGame = computed(() => games.value.some((game: any) => game.blockedReason === 'bond_required' || game.status === 'in_review'))
 const needsAttention = computed(() => games.value.filter((game: any) => game.status !== 'live'))
 
 function capitalize(value: string) {
