@@ -31,6 +31,27 @@
       </fieldset>
     </form>
 
+    <div class="authdiv" role="separator">or continue with</div>
+
+    <div class="walletbox">
+      <WalletSelector
+        v-if="wallets.length >= 2"
+        v-model="selectedWalletId"
+        :wallets="wallets"
+        :disabled="submitting || walletBusy"
+      />
+      <button
+        class="btn btn--ghost btn--full"
+        type="button"
+        :disabled="submitting || walletBusy"
+        @click="connectWallet"
+      >
+        <span v-if="walletBusy" class="spin" aria-hidden="true">◐</span>
+        {{ walletBusy ? (walletStep || 'Connecting wallet…') : 'Connect Avalanche Wallet' }}
+      </button>
+      <WalletErrorNote :message="walletError" :install-url="walletInstallUrl" />
+    </div>
+
     <p class="t-small dim" style="text-align:center;margin-top:26px">
       No passport yet? <NuxtLink :to="signupLink" style="color:var(--pink)">Create one free</NuxtLink>
     </p>
@@ -44,6 +65,7 @@ useHead({ title: 'Log in · Sverse' })
 const route = useRoute()
 const session = useSession()
 const toast = useToast()
+const { wallets, selectedWalletId, selectedWallet, refresh: refreshWallets } = useWallets()
 
 const next = computed(() => safeNext(route.query.next, '/passport'))
 const signupLink = computed(() => (route.query.next ? `/signup?next=${encodeURIComponent(next.value)}` : '/signup'))
@@ -58,6 +80,10 @@ const submitting = ref(false)
 const formError = ref('')
 const fieldErrors = reactive<Record<string, string>>({})
 const lockedFor = ref(0)
+const walletBusy = ref(false)
+const walletStep = ref('')
+const walletError = ref('')
+const walletInstallUrl = ref<string | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 
 const countdown = computed(() => {
@@ -81,6 +107,8 @@ onBeforeUnmount(() => timer && clearInterval(timer))
 
 function clearErrors() {
   formError.value = ''
+  walletError.value = ''
+  walletInstallUrl.value = null
   for (const key of Object.keys(fieldErrors)) delete fieldErrors[key]
 }
 
@@ -91,7 +119,7 @@ function validate() {
 }
 
 async function submit() {
-  if (submitting.value || lockedFor.value > 0) return
+  if (submitting.value || walletBusy.value || lockedFor.value > 0) return
   clearErrors()
   if (!validate()) return
   submitting.value = true
@@ -125,5 +153,30 @@ function humanIssue(field: string, issue: string) {
   if (field === 'email') return 'Enter a valid email address.'
   if (field === 'password') return 'Enter your password.'
   return issue
+}
+
+async function connectWallet() {
+  if (walletBusy.value || submitting.value) return
+  clearErrors()
+  walletStep.value = 'Connecting wallet…'
+  walletBusy.value = true
+  try {
+    const provider = selectedWallet.value?.provider ?? refreshWallets()[0]?.provider ?? null
+    const me = await session.loginWithWallet({
+      provider,
+      onStep: (step) => {
+        walletStep.value = step
+      },
+    })
+    toast.push('Logged in', `Welcome back, @${me.handle}.`, '✓')
+    await navigateTo(next.value, { replace: true })
+  } catch (error) {
+    const info = describeWalletAuthError(error)
+    walletError.value = info.message
+    walletInstallUrl.value = info.installUrl
+  } finally {
+    walletBusy.value = false
+    walletStep.value = ''
+  }
 }
 </script>
