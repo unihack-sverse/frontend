@@ -66,7 +66,13 @@ export function apiErrorOf(value: unknown): ApiError | null {
   return null
 }
 
-const AUTH_NO_RETRY = ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/refresh', '/api/v1/auth/logout']
+const AUTH_NO_RETRY = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/register',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/logout',
+  '/api/v1/auth/wallet/verify',
+]
 
 // One refresh in flight at a time (client only): the API rotates refresh tokens, and two
 // concurrent refreshes with the same token would trip its reuse detection.
@@ -173,6 +179,7 @@ export function toApiError(error: unknown): ApiError {
 
 /** Human message for an error state; never just the raw code. */
 export function errorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (error instanceof Error && error.name === 'WalletError' && error.message) return error.message
   const apiError = error instanceof ApiError ? error : error ? toApiError(error) : null
   if (!apiError) return fallback
   const known: Record<string, string> = {

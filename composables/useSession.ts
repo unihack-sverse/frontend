@@ -1,4 +1,17 @@
-import type { SessionUser } from '~/types/sverse'
+import type { SessionUser, WalletChallenge } from '~/types/sverse'
+import { AVALANCHE_FUJI_CHAIN_ID, connectAndSwitchFuji, signPersonalMessage, type Eip1193Provider } from '~/utils/avalanche'
+
+export interface WalletLoginInput {
+  provider?: Eip1193Provider | null
+  handle?: string
+  referralCode?: string
+  onStep?: (step: string) => void
+}
+
+export interface WalletLinkInput {
+  provider?: Eip1193Provider | null
+  onStep?: (step: string) => void
+}
 
 /**
  * idle          nothing resolved yet
@@ -86,6 +99,76 @@ export function useSession() {
     return me
   }
 
+  async function requestWalletSignature(
+    purpose: 'login' | 'link',
+    provider: Eip1193Provider | null | undefined,
+    onStep?: (step: string) => void,
+  ) {
+    const { provider: activeProvider, address } = await connectAndSwitchFuji(provider, (stage) => {
+      onStep?.(stage === 'switching' ? 'Switching to Avalanche Fuji…' : 'Connecting wallet…')
+    })
+
+    const challenge = await api.one<WalletChallenge>('/api/v1/auth/wallet/challenge', {
+      method: 'POST',
+      body: { address, chainId: AVALANCHE_FUJI_CHAIN_ID, purpose },
+      skipRefresh: purpose === 'login',
+    })
+
+    onStep?.('Approve signature…')
+    const signature = await signPersonalMessage(activeProvider, address, challenge.message)
+    return {
+      address: challenge.address || address,
+      nonce: challenge.nonce,
+      signature,
+    }
+  }
+
+  async function loginWithWallet(input: WalletLoginInput = {}) {
+    const { provider, handle, referralCode, onStep } = input
+    const signed = await requestWalletSignature('login', provider, onStep)
+    onStep?.('Signing in…')
+    const trimmedHandle = handle?.trim()
+    const trimmedReferral = referralCode?.trim()
+    const me = await api.one<SessionUser>('/api/v1/auth/wallet/verify', {
+      method: 'POST',
+      body: {
+        address: signed.address,
+        signature: signed.signature,
+        nonce: signed.nonce,
+        ...(trimmedHandle ? { handle: trimmedHandle } : {}),
+        ...(trimmedReferral ? { referralCode: trimmedReferral } : {}),
+      },
+      skipRefresh: true,
+    })
+    setUser(me)
+    return me
+  }
+
+  async function linkWallet(input: WalletLinkInput = {}) {
+    const { provider, onStep } = input
+    const signed = await requestWalletSignature('link', provider, onStep)
+    onStep?.('Linking wallet…')
+    const me = await api.one<SessionUser>('/api/v1/auth/wallet/link', {
+      method: 'POST',
+      body: {
+        address: signed.address,
+        signature: signed.signature,
+        nonce: signed.nonce,
+      },
+    })
+    setUser(me)
+    return me
+  }
+
+  async function updateHandle(handle: string) {
+    const me = await api.one<SessionUser>('/api/v1/passport/me/handle', {
+      method: 'PATCH',
+      body: { handle: handle.trim() },
+    })
+    setUser(me)
+    return me
+  }
+
   async function logout() {
     try {
       await api.one('/api/v1/auth/logout', { method: 'POST' })
@@ -105,5 +188,21 @@ export function useSession() {
     }
   }
 
-  return { state, user, status, loggedIn, resolved, ensure, reload, login, register, logout, setBalance, setUser }
+  return {
+    state,
+    user,
+    status,
+    loggedIn,
+    resolved,
+    ensure,
+    reload,
+    login,
+    register,
+    loginWithWallet,
+    linkWallet,
+    updateHandle,
+    logout,
+    setBalance,
+    setUser,
+  }
 }

@@ -20,8 +20,10 @@ export interface SessionUser {
   id: string
   handle: string
   displayHandle?: string
-  email: string
+  email: string | null
   emailVerified: boolean
+  walletAddress?: string | null
+  walletChainId?: number | null
   roles: string[]
   status: string
   custodialAddress: string | null
@@ -35,6 +37,14 @@ export interface SessionUser {
   balanceSrv: string
   faucet: { enabled: boolean; availableAt: string | null }
   createdAt: string
+}
+
+export interface WalletChallenge {
+  nonce: string
+  message: string
+  chainId: number
+  address: string
+  expiresAt: string
 }
 
 export interface StudioSummary {
