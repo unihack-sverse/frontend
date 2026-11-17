@@ -61,6 +61,23 @@
             </div>
           </div>
 
+          <!-- ══ Faucet (testnet only) ══ -->
+          <template v-if="studio.faucetEnabled">
+            <p class="sect">Testnet SRV</p>
+            <div class="card card--pad" style="margin-bottom:30px">
+              <p class="t-small" style="margin:0 0 14px">
+                Nhận <b>{{ faucetLabel }} SRV</b> test vào vault để dùng thử stake bond, withdraw, v.v.
+              </p>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <button class="btn btn--ghost" type="button" :disabled="faucetPending" @click="claimFaucet">
+                  {{ faucetPending ? 'Đang nhận…' : `Nhận ${faucetLabel} SRV test` }}
+                </button>
+                <span v-if="faucetSuccess" class="t-small" style="color:var(--green)">✓ Đã nhận — vault đã cập nhật</span>
+                <span v-if="faucetError" class="t-small" style="color:var(--red)">{{ faucetError }}</span>
+              </div>
+            </div>
+          </template>
+
           <!-- ══ Withdraw ══ -->
           <p class="sect">Withdraw</p>
           <div class="card card--pad">
@@ -337,6 +354,31 @@ const kycRequired = computed(() => {
   if (threshold <= 0n) return false
   return BigInt(studio.value?.withdrawnUnits ?? '0') >= threshold
 })
+
+/* ── faucet (testnet) ── */
+const faucetPending = ref(false)
+const faucetSuccess = ref(false)
+const faucetError = ref('')
+const faucetLabel = computed(() => {
+  const units = studio.value?.faucetAmountUnits
+  return formatSrv(units ?? '1000000000')
+})
+
+async function claimFaucet() {
+  if (faucetPending.value) return
+  faucetPending.value = true
+  faucetSuccess.value = false
+  faucetError.value = ''
+  try {
+    await api.one('/api/v1/studios/me/faucet', { method: 'POST' })
+    faucetSuccess.value = true
+    await refreshStudio()
+  } catch (err: any) {
+    faucetError.value = err?.data?.error?.message ?? 'Không thể nhận SRV test lúc này.'
+  } finally {
+    faucetPending.value = false
+  }
+}
 
 /* ── withdraw form ── */
 const withdrawAmount = ref('')

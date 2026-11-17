@@ -179,7 +179,12 @@
           </div>
           <div v-if="bondShortfall" class="note note--warn" style="margin-top:12px">
             <span class="note__i">⚠️</span>
-            <div><b>Bond is below the publishing minimum.</b> New games stay in review until the vault is topped up or the bond is staked.</div>
+            <div>
+              <b>Bond is below the publishing minimum.</b> New games stay in review until the vault is topped up or the bond is staked.
+              <div style="margin-top:10px">
+                <NuxtLink to="/studio/payouts" class="btn btn--ghost btn--sm">Nạp vault & stake bond →</NuxtLink>
+              </div>
+            </div>
           </div>
 
           <template v-if="needsAttention.length">
