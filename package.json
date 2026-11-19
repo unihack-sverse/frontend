@@ -10,7 +10,8 @@
         "preview": "wrangler dev",
         "deploy": "wrangler deploy",
         "deploy:build": "npm run build && npm run deploy",
-        "check": "nuxt typecheck"
+        "check": "nuxt typecheck",
+        "test": "vitest run"
     },
     "dependencies": {
         "nuxt": "4.4.8",
@@ -20,6 +21,7 @@
     "devDependencies": {
         "@types/node": "^22.0.0",
         "typescript": "5.9.3",
+        "vitest": "^5.1.1",
         "vue-tsc": "2.2.12",
         "wrangler": "4.118.0"
     }

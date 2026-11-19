@@ -78,9 +78,22 @@ const AUTH_NO_RETRY = [
 // concurrent refreshes with the same token would trip its reuse detection.
 let refreshInFlight: Promise<boolean> | null = null
 
+/**
+ * Normalizes `NUXT_PUBLIC_API_BASE` by trimming whitespace, stripping trailing slashes,
+ * and removing a redundant trailing `/api` segment (all frontend routes already start with
+ * `/api/v1/...` or `/admin/v1/...`).
+ */
+export function normalizeApiBase(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/api$/i, '')
+    .replace(/\/+$/, '')
+}
+
 export function useApi() {
   const config = useRuntimeConfig()
-  const baseURL = String(config.public.apiBase).replace(/\/$/, '')
+  const baseURL = normalizeApiBase(String(config.public.apiBase ?? ''))
   const requestHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
   // Captured in setup context so a failed refresh can mark the session logged out later.
   const sessionState = useSessionState()
@@ -155,11 +168,26 @@ export function useApi() {
   }
 }
 
+interface FetchErrorPayload {
+  error?: {
+    code?: unknown
+    message?: unknown
+    details?: unknown
+    requestId?: unknown
+  }
+}
+
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
   const cause = (error as { cause?: unknown } | null)?.cause
   if (cause instanceof ApiError) return cause
-  const fetchError = error as { status?: number; statusCode?: number; data?: any; message?: string; response?: { headers?: Headers } }
+  const fetchError = error as {
+    status?: number
+    statusCode?: number
+    data?: FetchErrorPayload
+    message?: string
+    response?: { headers?: Headers }
+  }
   const status = Number(fetchError?.status ?? fetchError?.statusCode ?? 0)
   const body = fetchError?.data?.error
   if (body && typeof body.code === 'string') {
@@ -167,9 +195,9 @@ export function toApiError(error: unknown): ApiError {
     return new ApiError({
       status,
       code: body.code,
-      message: body.message,
-      details: Array.isArray(body.details) ? body.details : [],
-      requestId: body.requestId ?? null,
+      message: typeof body.message === 'string' ? body.message : undefined,
+      details: Array.isArray(body.details) ? (body.details as ApiErrorDetail[]) : [],
+      requestId: typeof body.requestId === 'string' ? body.requestId : null,
       retryAfter: retryHeader ? Number(retryHeader) : null,
     })
   }
@@ -196,22 +224,28 @@ function capitalise(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function normalizeAssetUrls<T>(value: T, assetBase: string): T {
+export function normalizeAssetUrls<T>(value: T, assetBase: string): T {
+  const normalizedBase = normalizeApiBase(assetBase)
+  return rewriteAssetUrls(value, normalizedBase)
+}
+
+function rewriteAssetUrls<T>(value: T, assetBase: string): T {
   if (typeof value === 'string') return normalizeAssetUrl(value, assetBase) as T
-  if (Array.isArray(value)) return value.map((entry) => normalizeAssetUrls(entry, assetBase)) as T
+  if (Array.isArray(value)) return value.map((entry) => rewriteAssetUrls(entry, assetBase)) as T
   if (!value || typeof value !== 'object') return value
 
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [key, normalizeAssetUrls(entry, assetBase)]),
+    Object.entries(value).map(([key, entry]) => [key, rewriteAssetUrls(entry, assetBase)]),
   ) as T
 }
 
-function normalizeAssetUrl(value: string, assetBase: string) {
+export function normalizeAssetUrl(value: string, assetBase: string) {
   if (!value.startsWith('http')) return value
+  const normalizedBase = normalizeApiBase(assetBase)
   try {
     const url = new URL(value)
     const isLocalAsset = ['127.0.0.1', 'localhost'].includes(url.hostname) && url.pathname.startsWith('/assets/')
-    if (isLocalAsset) return `${assetBase}${url.pathname}${url.search}${url.hash}`
+    if (isLocalAsset) return `${normalizedBase}${url.pathname}${url.search}${url.hash}`
   } catch {
     // Non-URL strings are regular API data and should remain untouched.
   }
