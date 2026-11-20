@@ -20,8 +20,13 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # package-lock.json is gitignored in this repo, so `npm ci` is not available.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Test
+        run: npm test
 
       - name: Build (cloudflare_module preset)
         run: npm run build

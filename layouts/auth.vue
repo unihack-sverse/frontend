@@ -21,7 +21,8 @@
 
 <script setup lang="ts">
 import sverseLogo from '~/assets/images/sverse-logo.png'
+import { normalizeApiBase } from '~/composables/useApi'
 
 const config = useRuntimeConfig()
-const artUrl = computed(() => `${String(config.public.apiBase).replace(/\/$/, '')}/assets/seed/games/voidrunner-cover.png`)
+const artUrl = computed(() => `${normalizeApiBase(String(config.public.apiBase ?? ''))}/assets/seed/games/voidrunner-cover.png`)
 </script>

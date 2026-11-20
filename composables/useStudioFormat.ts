@@ -3,6 +3,8 @@
  * Money always arrives as integer unit strings; never parse a display string back into money.
  */
 
+import { normalizeApiBase } from '~/composables/useApi'
+
 const SRV_UNITS = 1_000_000
 
 const GENRES: Record<string, string> = {
@@ -26,7 +28,7 @@ export function useStudioFormat() {
   const config = useRuntimeConfig()
 
   function seedAsset(path: string) {
-    const base = String(config.public.apiBase ?? 'http://127.0.0.1:4000').replace(/\/$/, '')
+    const base = normalizeApiBase(String(config.public.apiBase ?? 'http://127.0.0.1:4000'))
     return `${base}/assets/seed/${path}`
   }
 
