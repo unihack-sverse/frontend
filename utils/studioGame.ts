@@ -8,12 +8,19 @@ export interface MappingRule {
   inRange?: number[]
 }
 
+export type ClampPolicy = 'reject' | 'clamp'
+
+export const ACCEPT_CLAMP_POLICY_OPTIONS: Array<{ value: ClampPolicy; label: string }> = [
+  { value: 'clamp', label: 'Clamp to tier max' },
+  { value: 'reject', label: 'Skip the item' },
+]
+
 export interface EnvelopeAcceptEntry {
   schemaId: string
   tierMax: string
   powerTierRange?: number[]
   mapping?: Record<string, MappingRule>
-  clampPolicy?: 'reject' | 'clamp' | string
+  clampPolicy?: ClampPolicy | string
 }
 
 export interface FieldIssue {
@@ -44,7 +51,7 @@ export interface CsvRow {
   supplyMax: string
 }
 
-export function srvToUnits(value: string | number): string | null {
+export function parseStudioSrvUnits(value: string | number): string | null {
   const trimmed = String(value ?? '').trim().replace(/,/g, '')
   if (!trimmed) return null
   if (!/^\d*(\.\d*)?$/.test(trimmed)) return null
@@ -98,7 +105,7 @@ export function parseCsvRows(csvText: string): CsvRow[] {
       name: cells[1] ?? '',
       kind: cells[3] || 'cosmetic',
       priceSrv,
-      priceUnits: srvToUnits(priceSrv) ?? '0',
+      priceUnits: parseStudioSrvUnits(priceSrv) ?? '0',
       royaltyBps: cells[5] ?? '0',
       interopTier: cells[6] ?? 'T0',
       schemaId: cells[7] ?? '',

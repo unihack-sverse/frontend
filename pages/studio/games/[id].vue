@@ -301,7 +301,7 @@ import { useModalFocusTrap } from '~/composables/useModalFocusTrap'
 import {
   issuesOf,
   messageOf,
-  srvToUnits,
+  parseStudioSrvUnits,
   unitsToSrvInput,
   type EnvelopeAcceptEntry,
   type FieldIssue,
@@ -683,7 +683,7 @@ async function saveEnvelope() {
       clampPolicy: entry.clampPolicy ?? envelopeForm.clampPolicy,
     })),
     licenseRequirement: envelopeForm.licenseRequirement,
-    feeUnits: srvToUnits(envelopeForm.feeSrv) ?? '0',
+    feeUnits: parseStudioSrvUnits(envelopeForm.feeSrv) ?? '0',
     hostSharePct: Number(String(envelopeForm.hostSharePct).replace(/[^\d]/g, '') || '0'),
   }
   try {

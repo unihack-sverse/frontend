@@ -32,7 +32,7 @@
             <label>Clamp policy</label>
             <AppSelect
               v-model="acceptDraft.clampPolicy"
-              :options="[{ value: 'clamp', label: 'Clamp to tier max' }, { value: 'skip', label: 'Skip the item' }]"
+              :options="ACCEPT_CLAMP_POLICY_OPTIONS"
               aria-label="Clamp policy"
               block
             />
@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import type { EnvelopeAcceptEntry } from '~/utils/studioGame'
+import { ACCEPT_CLAMP_POLICY_OPTIONS, type EnvelopeAcceptEntry } from '~/utils/studioGame'
 
 const props = defineProps<{
   open: boolean

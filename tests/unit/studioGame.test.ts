@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACCEPT_CLAMP_POLICY_OPTIONS,
   mappingSummary,
   parseCsvRows,
+  parseStudioSrvUnits,
   powerRangeLabel,
-  srvToUnits,
   unitsToSrvInput,
 } from '~/utils/studioGame'
 
@@ -52,18 +53,34 @@ describe('powerRangeLabel', () => {
   })
 })
 
-describe('srvToUnits and unitsToSrvInput', () => {
+describe('parseStudioSrvUnits and unitsToSrvInput', () => {
   it('converts SRV decimal strings to 6-decimal integer units', () => {
-    expect(srvToUnits('9.99')).toBe('9990000')
-    expect(srvToUnits('1,250.5')).toBe('1250500000')
-    expect(srvToUnits('')).toBeNull()
-    expect(srvToUnits('abc')).toBeNull()
+    expect(parseStudioSrvUnits('9.99')).toBe('9990000')
+    expect(parseStudioSrvUnits('1,250.5')).toBe('1250500000')
+    expect(parseStudioSrvUnits('0')).toBe('0')
+    expect(parseStudioSrvUnits('0.00')).toBe('0')
+    expect(parseStudioSrvUnits('')).toBeNull()
+    expect(parseStudioSrvUnits('abc')).toBeNull()
   })
 
   it('converts integer units back to SRV input string', () => {
     expect(unitsToSrvInput('9990000')).toBe('9.99')
     expect(unitsToSrvInput('0')).toBe('')
     expect(unitsToSrvInput(null)).toBe('')
+  })
+})
+
+describe('ACCEPT_CLAMP_POLICY_OPTIONS', () => {
+  it('only offers valid backend clampPolicy enum values while keeping UI labels', () => {
+    const validValues = new Set(['reject', 'clamp'])
+    expect(ACCEPT_CLAMP_POLICY_OPTIONS).toEqual([
+      { value: 'clamp', label: 'Clamp to tier max' },
+      { value: 'reject', label: 'Skip the item' },
+    ])
+    for (const option of ACCEPT_CLAMP_POLICY_OPTIONS) {
+      expect(validValues.has(option.value)).toBe(true)
+      expect(option.value).not.toBe('skip')
+    }
   })
 })
 

@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { issuesOf, messageOf, srvToUnits, unitsToSrvInput, type FieldIssue } from '~/utils/studioGame'
+import { issuesOf, messageOf, parseStudioSrvUnits, unitsToSrvInput, type FieldIssue } from '~/utils/studioGame'
 
 interface SchemaField {
   name: string
@@ -288,7 +288,7 @@ function closeModal() {
 }
 
 function buildItemBody(includeSku: boolean) {
-  const priceUnits = srvToUnits(itemForm.priceSrv)
+  const priceUnits = parseStudioSrvUnits(itemForm.priceSrv)
   const body: Record<string, unknown> = {
     name: itemForm.name,
     description: itemForm.description,
@@ -317,7 +317,7 @@ async function saveItem() {
   const priceSrv = String(itemForm.priceSrv ?? '').trim().replace(/,/g, '')
   if (!priceSrv) local.push({ field: 'priceUnits', issue: 'Add a price.' })
   else if (!/^\d*(\.\d{0,6})?$/.test(priceSrv)) local.push({ field: 'priceUnits', issue: 'Use digits only, up to 6 decimals.' })
-  else if (srvToUnits(priceSrv) === '0') local.push({ field: 'priceUnits', issue: 'Price must be greater than zero.' })
+  else if (parseStudioSrvUnits(priceSrv) === '0') local.push({ field: 'priceUnits', issue: 'Price must be greater than zero.' })
 
   if (!props.kindOptions.includes(itemForm.kind)) local.push({ field: 'kind', issue: 'Pick an item type.' })
   if (String(itemForm.description ?? '').length > 400) local.push({ field: 'description', issue: 'Description must be 400 characters or fewer.' })
